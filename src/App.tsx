@@ -2,6 +2,34 @@ import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { Calendar, Clock, Users, Phone, Mail, Building, Globe, FileText, Download, Trash2, Save, Home, Lock, Unlock, KeyRound, Shield } from 'lucide-react'
 
+// Google Sheets Integration
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyOpykMzPHrhi6pcthRdASWMQdjXO0VQJilRd9R67i1_GRqtBOPBcHDD8fJrHNjY1znCg/exec'
+
+const saveToGoogleSheets = async (booking: Booking) => {
+  const now = new Date()
+  const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+  
+  const data = {
+    agent: '',
+    checkIn: booking.date,
+    authorizer: '',
+    currentTime,
+    guests: [{
+      oldPID: '',
+      newPID: '',
+      name: booking.guest.name
+    }]
+  }
+
+  try {
+    const url = `${GOOGLE_SCRIPT_URL}?data=${encodeURIComponent(JSON.stringify(data))}`
+    await fetch(url, { method: 'GET', mode: 'no-cors' })
+    console.log('Saved to Google Sheets')
+  } catch (err) {
+    console.error('Failed to save to Google Sheets:', err)
+  }
+}
+
 // Services available in the booking system
 export type Service = 'room' | 'car' | 'golf' | 'bus'
 
@@ -151,9 +179,14 @@ function App() {
     setCurrentView('booking')
   }
 
-  const handleBookingComplete = (booking: Omit<Booking, 'id' | 'createdAt'>) => {
-    const newBookings = [...bookings, { ...booking, id: Date.now().toString(), createdAt: new Date().toISOString() }]
+  const handleBookingComplete = async (booking: Omit<Booking, 'id' | 'createdAt'>) => {
+    const newBooking = { ...booking, id: Date.now().toString(), createdAt: new Date().toISOString() }
+    const newBookings = [...bookings, newBooking]
     saveBookings(newBookings)
+    
+    // Save to Google Sheets
+    await saveToGoogleSheets(newBooking)
+    
     setCurrentView('bookings')
   }
 
